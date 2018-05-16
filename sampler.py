@@ -16,6 +16,8 @@ class sampler(object):
 		"""
 		Generate sampler object and sets placeholders for various parameters
 		used throughout inference.
+
+		Allocate memory for trajectory.
 		"""
 		# Placeholder for data
 		self.D = None
@@ -31,9 +33,9 @@ class sampler(object):
 		self.dt = dt
 
 		# Factors that appear in H computation.
-		self.g_xx = g_xx # Determines the step size in position. 
-		self.g_ff = g_ff # Determine the step size in the bright limit.
-		self.g_ff2 = g_ff2 # Determine the step size in the faint limit.
+		self.g_xx = g_xx # Affects the step size in all range.
+		self.g_ff = g_ff # Affects the step size in the bright limit. The bigger the smaller the step size.
+		self.g_ff2 = g_ff2 # Affects the step size in the faint limit. The bigger the smaller the step size.
 
 		# Compute factors to be used repeatedly.
 		self.compute_factors()
