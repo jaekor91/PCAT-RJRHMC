@@ -5,14 +5,17 @@
 # - All flux are in units of counts. The user only deals with magnitudes and the magitude to
 # flux (in counts) conversion is done internally.
 # - All object inputs are in the form (Nobjs, 3) with each row corresponding to an object 
-# and its mag, x, y information. This is converted to three Nobjs-long vectors internally.
+# and its mag, x, y information. This is converted to three Nobjs-dimensional vectors internally.
 # - The initial point is saved in 0-index position. If the user asks for N samples, then 
 # the returned array cotains N+1 samples including the initial point.
+# - Only allows running of a single chain.
 
 from utils import *
 
 class sampler(object):
-	def __init__(self, dt = 5e-1, g_xx = 2., g_ff = 2., g_ff2 = 2.):
+	def __init__(self, save_traj = False, Nobjs_max = False, Nsteps=10, Niter=100,\
+		dt=5e-1, g_xx=2., g_ff=2., g_ff2=2., use_prior=True, alpha=2., prob_moves = [1.0, 0.0, 0.0, 0.0], \
+		K_split = 1., beta_a = 2., beta_b = 2.):
 		"""
 		Generate sampler object and sets placeholders for various parameters
 		used throughout inference.
@@ -28,6 +31,18 @@ class sampler(object):
 		# Default experimental set-up
 		self.num_rows, self.num_cols, self.flux_to_count, self.PSF_FWHM_pix, \
 			self.B_count, self.mB, self.f_lim, self.arcsec_to_pix = self.default_exp_setup()
+
+		# Maximum number of objects allowed.
+		self.Nobjs_max = Nobjs_max
+
+		# Number of iterations/steps
+		self.Niter = Niter
+		self.Nsteps = Nsteps
+
+		# ----- Allocate space for the entire trajectories.
+		# No need to save momenta
+		# Variables are saved in high performance friendly format. 
+		self.q = np.zeros((Niter+1, Nsteps+1, 3, Nobjs_max)) # Channels: 0 - f, 1 - x, 2 - y.
 
 		# Global time step
 		self.dt = dt
@@ -45,13 +60,13 @@ class sampler(object):
 		self.vmax = None
 
 		# Flux prior f**-alpha (alpha must be greater 1)
-		self.use_prior = False
-		self.alpha = 2.
+		self.use_prior = use_prior
+		self.alpha = alpha
 
 		# Split merge parameters
-		self.K_split = 1.
-		self.beta_a = 2.
-		self.beta_b = 2.
+		self.K_split = K_split
+		self.beta_a = beta_a
+		self.beta_b = beta_b
 
 		# Proposal type defined in a dictionary
 		self.move_types = {0: "within", 1: "birth", 2: "death", 3: "split", 4: "merge"}
