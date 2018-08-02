@@ -50,7 +50,7 @@ class sampler(object):
 		self.q = np.zeros((Niter+1, 3, Nobjs_max)) # Channels: 0 - f, 1 - x, 2 - y.
 		self.p = np.zeros((Niter+1, 3, Nobjs_max))
 		self.E = np.zeros((Niter+1, 2))
-		self.N = np.zeros(Niter+1, dypte=int)# The total number of **objects** at a particular point in the inference.
+		self.N = np.zeros(Niter+1, dtype=int)# The total number of **objects** at a particular point in the inference.
 
 		# Global time step
 		self.dt = dt
