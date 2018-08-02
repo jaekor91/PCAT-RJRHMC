@@ -18,7 +18,7 @@ from utils import *
 
 class sampler(object):
 	def __init__(self, Nobjs_max = 1000, Nsteps=10, Niter=100,\
-		dt=5e-2, rho_xy=0.05, rho_f=4., alpha=2., prob_moves = [1.0, 0.0, 0.0, 0.0], \
+		dt=5e-2, rho_xy=0.05, rho_f=4., alpha=2., prob_moves = [1.0, 0.0, 0.0], \
 		K = 1., B_alpha = 2., B_beta = 2.):
 		"""
 		Generate sampler object and sets placeholders for various parameters
@@ -26,6 +26,11 @@ class sampler(object):
 
 		Args: The variable names are consistent with the ones introduced in the text.
 		----
+		- prob_moves: Since the inter-model moves are always considered as a pair, no need to use
+		separate probabilities.
+			- 0: Intra-model moves
+			- 1: BD
+			- 2: MS
 		"""
 		# Placeholder for data
 		self.D = None
@@ -35,7 +40,7 @@ class sampler(object):
 
 		# Default "experimental" set-up
 		self.N_rows, self.N_cols, self.flux_to_count, self.PSF_FWHM_pix, \
-			self.B_count, self.mB, self.f_min, self.arcsec_to_pix = self.default_exp_setup()
+			self.B_count, self.mB, self.f_min, self.f_max, self.arcsec_to_pix = self.default_exp_setup()
 
 		# Maximum number of objects allowed.
 		self.Nobjs_max = Nobjs_max
@@ -108,11 +113,12 @@ class sampler(object):
 		mB = 23 # Backgroud magnitude per pixel.
 		B_count = mag2flux(mB) * flux_to_count 
 		f_min = mag2flux(mB) * flux_to_count # Limiting magnitude
+		f_max = mag2flux(15)
 
 		# Size of the image
 		num_rows = num_cols = 32 # Pixel index goes from 0 to num_rows-1
 
-		return num_rows, num_cols, flux_to_count, PSF_FWHM_pix, B_count, mB, f_min, arcsec_to_pix
+		return num_rows, num_cols, flux_to_count, PSF_FWHM_pix, B_count, mB, f_min, f_max, arcsec_to_pix
 
 	def compute_factors(self):
 		"""
