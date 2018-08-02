@@ -639,3 +639,133 @@ class sampler(object):
 
 
 		return		
+
+
+	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
+						color_truth="red", color_model="blue", ft_size = 15, num_ticks = 5, \
+						show=False, save=None, title_str = None, \
+						m=-30, b =20, s0=23, y_min=10, m_min = 14.5, m_max = 23.):
+		"""
+		- idx_iter: Index of the iteration to plot.
+		- m, b, s0, y_min: Parameters for the scatter plot.
+		"""
+		assert self.vmin is not None
+
+
+		# --- Extract X, Y, Mag variables
+		# Truth 
+		F0 = self.q0[0]
+		X0 = self.q0[1]
+		Y0 = self.q0[2]
+		S0 = linear_func(F0, m=m, b = b, s0=s0, y_min=y_min)
+		# Model
+		F = self.q[idx_iter, 0]
+		X = self.q[idx_iter, 1]
+		Y = self.q[idx_iter, 2]
+		S = linear_func(F, m=m, b = b, s0=s0, y_min=y_min)
+
+		# --- Make the plot
+		fig, ax_list = plt.subplots(2, 3, figsize=figsize)
+		# ---- Joining certain axis
+		ax_list[0, 0].get_shared_x_axes().join(ax_list[0, 0], ax_list[1, 0])
+		ax_list[0, 0].get_shared_y_axes().join(ax_list[0, 0], ax_list[0, 1])
+		ax_list[0, 0].get_shared_y_axes().join(ax_list[0, 0], ax_list[1, 1])
+		ax_list[0, 0].get_shared_x_axes().join(ax_list[0, 0], ax_list[1, 1])
+		ax_list[0, 0].get_shared_y_axes().join(ax_list[0, 0], ax_list[1, 2])
+		ax_list[0, 0].get_shared_x_axes().join(ax_list[0, 0], ax_list[1, 2])
+
+		# (0, 0): Image
+		ax_list[0, 0].imshow(self.D, cmap="gray", interpolation="none", vmin=self.vmin, vmax=self.vmax)
+		# Truth locs
+		ax_list[0, 0].scatter(Y0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		# Model locs
+		ax_list[0, 0].scatter(Y, X, c=color_model, s=S, edgecolor="none", marker="x")
+		# Decorations
+		ax_list[0, 0].set_title("Data", fontsize=ft_size)
+		ax_list[0, 0].set_xlabel("Y", fontsize=ft_size)
+		ax_list[0, 0].set_ylabel("X", fontsize=ft_size)
+		yticks00 = ticker.MaxNLocator(num_ticks)
+		xticks00 = ticker.MaxNLocator(num_ticks)
+		ax_list[0, 0].yaxis.set_major_locator(yticks00)
+		ax_list[0, 0].xaxis.set_major_locator(xticks00)
+		ax_list[0, 0].set_xlim([-1.5, self.N_rows])
+		ax_list[0, 0].set_ylim([-1.5, self.N_cols])
+
+		# (0, 1): Mag - X
+		ax_list[0, 1].scatter(F0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[0, 1].scatter(F, X, c=color_model, s=S, edgecolor="none", marker="x")
+		# Decorations
+		ax_list[0, 1].axvline(x=self.flux2mag_converter(self.f_lim), c="green", lw=1.5, ls="--")
+		ax_list[0, 1].set_ylabel("X", fontsize=ft_size)
+		ax_list[0, 1].set_xlabel("Mag", fontsize=ft_size)
+		ax_list[0, 1].set_xlim([m_min, m_max])		
+		yticks10 = ticker.MaxNLocator(num_ticks)
+		xticks10 = ticker.MaxNLocator(num_ticks)
+		ax_list[0, 1].yaxis.set_major_locator(yticks10)
+		ax_list[0, 1].xaxis.set_major_locator(xticks10)	
+
+
+		# (1, 0): Y - Mag
+		ax_list[1, 0].scatter(Y0, F0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[1, 0].scatter(Y, F, c=color_model, s=S, edgecolor="none", marker="x")
+		# Decorations
+		ax_list[1, 0].axhline(y=self.flux2mag_converter(self.f_lim), c="green", lw=1.5, ls="--")
+		ax_list[1, 0].set_ylabel("Mag", fontsize=ft_size)
+		ax_list[1, 0].set_xlabel("Y", fontsize=ft_size)
+		ax_list[1, 0].set_ylim([m_min, m_max])		
+		yticks10 = ticker.MaxNLocator(num_ticks)
+		xticks10 = ticker.MaxNLocator(num_ticks)
+		ax_list[1, 0].yaxis.set_major_locator(yticks10)
+		ax_list[1, 0].xaxis.set_major_locator(xticks10)	
+
+		# (1, 1): Model
+		model = self.gen_model(q_model)
+		ax_list[1, 1].imshow(model, cmap="gray", interpolation="none", vmin=self.vmin, vmax=self.vmax)
+		ax_list[1, 1].scatter(Y0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[1, 1].scatter(Y, X, c=color_model, s=S, edgecolor="none", marker="x")
+		ax_list[1, 1].set_title("Model", fontsize=ft_size)
+		yticks11 = ticker.MaxNLocator(num_ticks)
+		xticks11 = ticker.MaxNLocator(num_ticks)
+		ax_list[1, 1].yaxis.set_major_locator(yticks11)
+		ax_list[1, 1].xaxis.set_major_locator(xticks11)
+		ax_list[1, 1].set_xlabel("Y", fontsize=ft_size)
+		ax_list[1, 1].set_ylabel("X", fontsize=ft_size)
+
+		# (1, 2): Residual
+		sig_fac = 7.
+		residual = self.D - model
+		sig = np.sqrt(self.B_count)
+		ax_list[1, 2].imshow(residual, cmap="gray", interpolation="none", vmin=-sig_fac * sig, vmax=sig_fac * sig)
+		ax_list[1, 2].scatter(Y0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[1, 2].scatter(Y, X, c=color_model, s=S, edgecolor="none", marker="x")
+		ax_list[1, 2].set_title("Residual", fontsize=ft_size)
+		yticks12 = ticker.MaxNLocator(num_ticks)
+		xticks12 = ticker.MaxNLocator(num_ticks)
+		ax_list[1, 2].yaxis.set_major_locator(yticks12)
+		ax_list[1, 2].xaxis.set_major_locator(xticks12)
+		ax_list[1, 2].set_xlabel("Y", fontsize=ft_size)
+		ax_list[1, 2].set_ylabel("X", fontsize=ft_size)
+
+		# (0, 2): Residual histogram
+		sig_fac2 = 10. # Histogram should plot wider range
+		sig = np.sqrt(self.B_count)
+		bins = np.arange(-sig_fac2 * sig, sig_fac2 * sig, sig/5.)
+		ax_list[0, 2].step(self.centers_noise, self.hist_noise * (self.N_rows * self.N_cols), color="blue", lw=1.5)
+		ax_list[0, 2].hist(residual.ravel(), bins=bins, color="black", lw=1.5, histtype="step")
+		ax_list[0, 2].set_xlim([-sig_fac2 * sig, sig_fac2 * sig])
+		ax_list[0, 2].set_ylim([0, np.max(self.hist_noise) * 1.1 * (self.N_rows * self.N_cols)])		
+		ax_list[0, 2].set_title("Res. hist", fontsize=ft_size)
+		yticks02 = ticker.MaxNLocator(num_ticks)
+		xticks02 = ticker.MaxNLocator(num_ticks)
+		ax_list[0, 2].yaxis.set_major_locator(yticks02)
+		ax_list[0, 2].xaxis.set_major_locator(xticks02)
+
+		# Add title
+		if title_str is not None:
+			plt.suptitle(title_str, fontsize=25)
+
+		if save is not None:
+			plt.savefig(save, dpi=200, bbox_inches = "tight")
+		if show:
+			plt.show()			
+		plt.close()
