@@ -120,7 +120,7 @@ class sampler(object):
 		mB = 23 # Backgroud magnitude per pixel.
 		B_count = mag2flux(mB) * flux_to_count 
 		f_min = mag2flux(mB-2) * flux_to_count # Limiting magnitude
-		f_max = mag2flux(15) * flux_to_count 
+		f_max = mag2flux(13) * flux_to_count 
 
 		# Size of the image
 		N_rows = N_cols = 32 # Pixel index goes from 0 to N_rows-1
@@ -645,7 +645,7 @@ class sampler(object):
 	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
 						color_truth="red", color_model="blue", ft_size = 15, num_ticks = 5, \
 						show=False, save=None, title_str = None, \
-						m=-15, b = 5, s0=21, y_min=5, m_min = 14.5, m_max = 23.):
+						m=-20, b = 5, s0=20, y_min=5, m_min = 15., m_max = 21.5):
 		"""
 		- idx_iter: Index of the iteration to plot.
 		- m, b, s0, y_min: Parameters for the scatter plot.
