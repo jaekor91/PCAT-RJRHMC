@@ -119,7 +119,7 @@ class sampler(object):
 		#---- Default mag set up
 		mB = 23 # Backgroud magnitude per pixel.
 		B_count = mag2flux(mB) * flux_to_count 
-		f_min = mag2flux(mB) * flux_to_count # Limiting magnitude
+		f_min = mag2flux(mB-2) * flux_to_count # Limiting magnitude
 		f_max = mag2flux(15) * flux_to_count 
 
 		# Size of the image
@@ -138,7 +138,8 @@ class sampler(object):
 		"""
 		Given the sample Nsample, draw samples from the xyf-prior.
 		"""
-		f = gen_pow_law_sample(self.alpha, self.f_min, self.f_max, Nsample=Nsample)
+		f = gen_pow_law_sample(self.alpha, self.f_min/self.flux_to_count, \
+			self.f_max/self.flux_to_count, Nsample=Nsample) * self.flux_to_count
 		x = np.random.random(size=Nsample) * self.N_rows
 		y = np.random.random(size=Nsample) * self.N_cols
 
@@ -149,7 +150,8 @@ class sampler(object):
 		"""
 		Given the sample number Nsample, draw first model samples from the xyf-prior.
 		"""
-		f = gen_pow_law_sample(self.alpha, self.f_min, self.f_max, Nsample=Nsample)
+		f = gen_pow_law_sample(self.alpha, self.f_min/self.flux_to_count, \
+			self.f_max/self.flux_to_count, Nsample=Nsample) * self.flux_to_count
 		x = np.random.random(size=Nsample) * self.N_rows
 		y = np.random.random(size=Nsample) * self.N_cols
 
@@ -202,10 +204,10 @@ class sampler(object):
 		xticks = ticker.MaxNLocator(num_ticks)		
 		ax.yaxis.set_major_locator(yticks)
 		ax.xaxis.set_major_locator(xticks)		
-		if show:
-			plt.show()
 		if save is not None:
 			plt.savefig(save, dpi=200, bbox_inches = "tight")
+		if show:
+			plt.show()			
 		plt.close()
 
 
@@ -644,25 +646,24 @@ class sampler(object):
 	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
 						color_truth="red", color_model="blue", ft_size = 15, num_ticks = 5, \
 						show=False, save=None, title_str = None, \
-						m=-30, b =20, s0=23, y_min=10, m_min = 14.5, m_max = 23.):
+						m=-15, b = 5, s0=21, y_min=5, m_min = 14.5, m_max = 23.):
 		"""
 		- idx_iter: Index of the iteration to plot.
 		- m, b, s0, y_min: Parameters for the scatter plot.
 		"""
 		assert self.vmin is not None
 
-
 		# --- Extract X, Y, Mag variables
 		# Truth 
 		F0 = self.q0[0]
 		X0 = self.q0[1]
 		Y0 = self.q0[2]
-		S0 = linear_func(F0, m=m, b = b, s0=s0, y_min=y_min)
+		S0 = linear_func(self.flux2mag_converter(F0), m=m, b = b, s0=s0, y_min=y_min)
 		# Model
 		F = self.q[idx_iter, 0]
 		X = self.q[idx_iter, 1]
 		Y = self.q[idx_iter, 2]
-		S = linear_func(F, m=m, b = b, s0=s0, y_min=y_min)
+		S = linear_func(self.flux2mag_converter(F), m=m, b = b, s0=s0, y_min=y_min)
 
 		# --- Make the plot
 		fig, ax_list = plt.subplots(2, 3, figsize=figsize)
@@ -692,10 +693,10 @@ class sampler(object):
 		ax_list[0, 0].set_ylim([-1.5, self.N_cols])
 
 		# (0, 1): Mag - X
-		ax_list[0, 1].scatter(F0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
-		ax_list[0, 1].scatter(F, X, c=color_model, s=S, edgecolor="none", marker="x")
+		ax_list[0, 1].scatter(self.flux2mag_converter(F0), X0, c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[0, 1].scatter(self.flux2mag_converter(F), X, c=color_model, s=S, edgecolor="none", marker="x")
 		# Decorations
-		ax_list[0, 1].axvline(x=self.flux2mag_converter(self.f_lim), c="green", lw=1.5, ls="--")
+		ax_list[0, 1].axvline(x=self.flux2mag_converter(self.f_min), c="green", lw=1.5, ls="--")
 		ax_list[0, 1].set_ylabel("X", fontsize=ft_size)
 		ax_list[0, 1].set_xlabel("Mag", fontsize=ft_size)
 		ax_list[0, 1].set_xlim([m_min, m_max])		
@@ -706,10 +707,10 @@ class sampler(object):
 
 
 		# (1, 0): Y - Mag
-		ax_list[1, 0].scatter(Y0, F0, c=color_truth, s=S0, edgecolor="none", marker="x")
-		ax_list[1, 0].scatter(Y, F, c=color_model, s=S, edgecolor="none", marker="x")
+		ax_list[1, 0].scatter(Y0, self.flux2mag_converter(F0), c=color_truth, s=S0, edgecolor="none", marker="x")
+		ax_list[1, 0].scatter(Y, self.flux2mag_converter(F), c=color_model, s=S, edgecolor="none", marker="x")
 		# Decorations
-		ax_list[1, 0].axhline(y=self.flux2mag_converter(self.f_lim), c="green", lw=1.5, ls="--")
+		ax_list[1, 0].axhline(y=self.flux2mag_converter(self.f_min), c="green", lw=1.5, ls="--")
 		ax_list[1, 0].set_ylabel("Mag", fontsize=ft_size)
 		ax_list[1, 0].set_xlabel("Y", fontsize=ft_size)
 		ax_list[1, 0].set_ylim([m_min, m_max])		
@@ -719,7 +720,7 @@ class sampler(object):
 		ax_list[1, 0].xaxis.set_major_locator(xticks10)	
 
 		# (1, 1): Model
-		model = self.gen_model(q_model)
+		model = self.gen_model_image(F, X, Y)
 		ax_list[1, 1].imshow(model, cmap="gray", interpolation="none", vmin=self.vmin, vmax=self.vmax)
 		ax_list[1, 1].scatter(Y0, X0, c=color_truth, s=S0, edgecolor="none", marker="x")
 		ax_list[1, 1].scatter(Y, X, c=color_model, s=S, edgecolor="none", marker="x")
@@ -769,3 +770,6 @@ class sampler(object):
 		if show:
 			plt.show()			
 		plt.close()
+
+	def flux2mag_converter(self, F):
+		return flux2mag(F / self.flux_to_count) # The division is necessary because flux is already in counts units.
