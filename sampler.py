@@ -741,6 +741,140 @@ class sampler(object):
 		return f_new, x_new, y_new, pf_new, px_new, py_new, factor
 
 
+
+	def merge_split_move(self, f, x, y, pf, px, py, merge_split = None):
+		"""
+		Implement birth/death move.
+		Merge if merge_split = True, split if merge_split = False.
+		"""
+		# if (merge_split is None) or (self.alpha is None) or (self.f_min is None)\
+		# 	or (self.f_max is None): # Prior must be provided.
+		# 	assert False		
+
+		if merge_split: # If birth
+			if f.size == self.Nobjs_max-1:
+				factor = -np.infty
+				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
+			else:
+				# Create the output array and paste in the old
+				f_new = np.zeros(f.size+1)
+				x_new = np.zeros(f.size+1)
+				y_new = np.zeros(f.size+1)			
+				pf_new = np.zeros(f.size+1)
+				px_new = np.zeros(f.size+1)
+				py_new = np.zeros(f.size+1)
+
+				# Choose the source to be split
+				i_star = np.random.randint(0, f.size, size=1)[0]
+				f_star, x_star, y_star = f[i_star], x[i_star], y[i_star]
+				pf_star, px_star, py_star = pf[i_star], px[i_star], py[i_star]
+
+				# Draw the auxiliary variables
+				dx, dy = np.random.randn(2) * self.K # distance
+				dr_sq = dx**2 + dy**2 # Square distance			
+				F = BETA.rvs(self.B_alpha, self.B_beta, size=1)[0] # Flux split fraction
+
+				# Split the star
+				f_prime = F * f_star
+				x_prime = x_star + (1-F) * dx
+				y_prime = y_star + (1-F) * dy			
+				f_dprime = (1-F) * f_star
+				x_dprime = x_star - F * dx
+				y_dprime = y_star - F * dy
+
+				# Sample momentum for the new stars
+				pf_prime, px_prime, py_prime = self.sample_momentum(f_prime)
+				pf_dprime, px_dprime, py_dprime = self.sample_momentum(f_dprime)
+
+				# -- Put them all together in the above arrays
+				# Add up to before split star
+				f_new[:i_star] = f[:istar]
+				x_new[:i_star] = x[:istar]
+				y_new[:i_star] = y[:istar]
+				pf_new[:i_star] = pf[:i_star]
+				px_new[:i_star] = px[:i_star]
+				py_new[:i_star] = py[:i_star]
+				# Add the remaining
+				f_new[i_star:-2] = f[i_star+1:]
+				x_new[i_star:-2] = x[i_star+1:]
+				y_new[i_star:-2] = y[i_star+1:]
+				pf_new[i_star:-2] = pf[i_star+1:]
+				px_new[i_star:-2] = px[i_star+1:]
+				py_new[i_star:-2] = py[i_star+1:]
+				# Add the two new
+				f_new[-2:] =np.array([f_prime, f_dprime])
+				x_new[-2:] =np.array([x_prime, x_dprime])
+				y_new[-2:] =np.array([y_prime, y_dprime])
+				pf_new[-2:] = np.array([pf_prime, pf_dprime])
+				px_new[-2:] = np.array([px_prime, px_dprime])
+				py_new[-2:] = np.array([py_prime, py_dprime])
+
+				# Factor to be added to ln_alpha0
+				factor = (-3/2.) + np.log(f_star) - BETA.logpdf(F, self.B_alpha, self.B_beta) \
+					+ np.log(2 * np.pi * self.K**2) + (dr_sq / (2 * self.K**2)) \
+					+ self.Tqp(f_star, pf_star, px_star, py_star) - self.Tqp(f_prime, pf_prime, px_prime, py_prime)
+					- self.Tqp(f_dprime, pf_dprime, px_dprime, py_dprime)
+		else: # If merge
+			if f.size == 1: 
+				factor = -np.infty
+				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
+			else:				
+				# Compute F-matrix and the associated probability
+				F_matrix = f / (f.reshape((f.size, 1)) + f)
+				ibool = np.abs(F_matrix-0.5) < 1e-10
+				BETA_F = BETA.pdf(F_matrix, self.B_alpha, self.B_beta)
+				BETA_F[ibool] = 0. # Eliminate self-merging possibility.
+
+				# Compute distance matrix and the corresponding probability.
+				R_sq = (x.reshape((f.size, 1)) - x)**2 + (y.reshape((f.size, 1)) - y)**2
+				Q_dxdy = np.exp(-R_sq / (2. * self.K**2)) / (2. * np.pi * self.K**2)
+				# Total probility
+				P_choose = BETA_F * Q_dxdy
+				P_choose /= np.sum(P_choose)
+
+				#----Choose the objects to merge
+				pair_num = np.random.choice(xrange(f.size**2), p=P_choose.ravel())
+				idx_prime = pair_num // f.size
+				idx_dprime = pair_num % f.size
+				if idx_prime > idx_dprime:
+					idx_prime, idx_dprime = idx_dprime, idx_prime
+
+				#----Import the objects to merge and compute the result.
+				# Unpack
+				f_prime, x_prime, y_prime = f[idx_prime], x[idx_prime], y[idx_prime]
+				f_dprime, x_dprime, y_dprime = f[idx_dprime], x[idx_dprime], y[idx_dprime]
+
+				# Comptue u varibles
+				F = f_prime / (f_prime + f_dprime)
+				dx = x_prime - x_dprime
+				dy = y_prime - y_dprime
+				dr_sq = dx**2 + dy**2
+
+				# Compute merged
+				f_star = f_prime + f_dprime
+				x_star = F * x_prime + (1-F) * x_dprime
+				y_star = F * y_prime + (1-F) * y_dprime
+
+				# Draw momenta for the merge
+				pf_star, px_star, py_star = self.sample_momentum(f_star)
+
+				# --Put everything in the right order
+				f_new = np.concatenate([f[:idx_prime], f[idx_prime+1:idx_dprime], f[idx_dprime+1:], np.array(f_star)])
+				x_new = np.concatenate([x[:idx_prime], x[idx_prime+1:idx_dprime], x[idx_dprime+1:], np.array(x_star)])
+				y_new = np.concatenate([y[:idx_prime], y[idx_prime+1:idx_dprime], y[idx_dprime+1:], np.array(y_star)])
+				pf_new = np.concatenate([pf[:idx_prime], pf[idx_prime+1:idx_dprime], pf[idx_dprime+1:], np.array(pf_star)])
+				px_new = np.concatenate([px[:idx_prime], px[idx_prime+1:idx_dprime], px[idx_dprime+1:], np.array(px_star)])
+				py_new = np.concatenate([py[:idx_prime], py[idx_prime+1:idx_dprime], py[idx_dprime+1:], np.array(py_star)])
+
+				# Factor to be added to ln_alpha0
+				factor = (+3/2.) - np.log(f_star) + BETA.logpdf(F, self.B_alpha, self.B_beta) \
+					- np.log(2 * np.pi * self.K**2) - (dr_sq / (2 * self.K**2)) \
+					- self.Tqp(f_star, pf_star, px_star, py_star) + self.Tqp(f_prime, pf_prime, px_prime, py_prime)
+					+ self.Tqp(f_dprime, pf_dprime, px_dprime, py_dprime)
+
+		return f_new, x_new, y_new, pf_new, px_new, py_new, factor
+
+
 	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
 						color_truth="red", color_model="blue", ft_size = 15, num_ticks = 5, \
 						show=False, save=None, title_str = None, \
