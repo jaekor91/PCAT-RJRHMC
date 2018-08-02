@@ -56,9 +56,8 @@ class sampler(object):
 		self.dt = dt
 
 		# Factors that appear in H computation.
-		self.g_xx = g_xx # Affects the step size in all range.
-		self.g_ff = g_ff # Affects the step size in the bright limit. The bigger the smaller the step size.
-		self.g_ff2 = g_ff2 # Affects the step size in the faint limit. The bigger the smaller the step size.
+		self.rho_xy = rho_xy # Affects the step size in all range.
+		self.rho_f = rho_f # Affects the step size in the bright limit. The bigger the smaller the step size.
 
 		# Compute factors to be used repeatedly.
 		self.compute_factors()
@@ -119,5 +118,5 @@ class sampler(object):
 		"""
 		Compute constant factors that are useful RHMC_diag method.
 		"""
-		self.g0, self.g1, self.g2 = factors(self.num_rows, self.num_cols, self.num_rows/2., self.num_cols/2., self.PSF_FWHM_pix)
+		self.g0, self.g1, self.g2 = factors(self.N_rows, self.N_cols, self.N_rows/2., self.N_cols/2., self.PSF_FWHM_pix)
 		return
