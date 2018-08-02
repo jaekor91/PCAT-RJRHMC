@@ -752,9 +752,9 @@ class sampler(object):
 		Y0 = self.q0[2]
 		S0 = linear_func(self.flux2mag_converter(F0), m=m, b = b, s0=s0, y_min=y_min)
 		# Model
-		F = self.q[idx_iter, 0]
-		X = self.q[idx_iter, 1]
-		Y = self.q[idx_iter, 2]
+		F = self.q[idx_iter, 0, :self.N[idx_iter]]
+		X = self.q[idx_iter, 1, :self.N[idx_iter]]
+		Y = self.q[idx_iter, 2, :self.N[idx_iter]]
 		S = linear_func(self.flux2mag_converter(F), m=m, b = b, s0=s0, y_min=y_min)
 
 		# --- Make the plot
