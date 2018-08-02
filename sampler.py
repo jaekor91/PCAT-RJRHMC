@@ -123,9 +123,9 @@ class sampler(object):
 		f_max = mag2flux(15) * flux_to_count 
 
 		# Size of the image
-		num_rows = num_cols = 32 # Pixel index goes from 0 to num_rows-1
+		N_rows = N_cols = 32 # Pixel index goes from 0 to N_rows-1
 
-		return num_rows, num_cols, flux_to_count, PSF_FWHM_pix, B_count, mB, f_min, f_max, arcsec_to_pix
+		return N_rows, N_cols, flux_to_count, PSF_FWHM_pix, B_count, mB, f_min, f_max, arcsec_to_pix
 
 	def compute_factors(self):
 		"""
@@ -361,8 +361,8 @@ class sampler(object):
 		# Variable to be recycled
 		rho = (self.D/Lambda)-1.# (D_lm/Lambda_lm - 1)
 		# Compute f, x, y gradient for each object
-		lv = np.arange(0, self.num_rows)
-		mv = np.arange(0, self.num_cols)
+		lv = np.arange(0, self.N_rows)
+		mv = np.arange(0, self.N_cols)
 		mv, lv = np.meshgrid(lv, mv)
 		var = (self.PSF_FWHM_pix/2.354)**2 
 
@@ -373,7 +373,7 @@ class sampler(object):
 		dVdy = np.zeros(f.size)		
 		for s in range(f.size):
 			fs, xs, ys = fs[s], x[s], y[s]
-			PSF = gauss_PSF(self.num_rows, self.num_cols, x[s], y[s], FWHM=self.PSF_FWHM_pix)
+			PSF = gauss_PSF(self.N_rows, self.N_cols, x[s], y[s], FWHM=self.PSF_FWHM_pix)
 			dVdf[s] = -np.sum(rho * PSF) + self.alpha / f # Note that there is always the prior.
 			dVdx[s] = -np.sum(rho * (lv - x + 0.5) * PSF) * fs / var
 			dVdy[s] = -np.sum(rho * (mv - y + 0.5) * PSF) * fs / var
