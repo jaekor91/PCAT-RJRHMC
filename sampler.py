@@ -56,7 +56,7 @@ class sampler(object):
 		self.E = np.zeros((Niter, 2))
 		self.V = np.zeros((Niter, 2)) # Potential
 		self.T = np.zeros((Niter, 2))	# Kinetic
-		self.N = np.zeros(Niter, dtype=int) # The total number of **objects** at the initial point.
+		self.N = np.zeros(Niter+1, dtype=int) # The total number of **objects** at the initial point.
 		self.A = np.zeros(Niter, dtype=bool) # Was the proposal accepted?
 		self.moves = np.zeros(Niter+1, dtype=int) # Record what sort of proposals were made.
 
@@ -310,13 +310,23 @@ class sampler(object):
 
 		return -ln_poisson - ln_prior
 
-	def Tqp(self, f, x, y, pf, px, py):
+	def Tqp(self, f, pf, px, py):
 		"""
 		The potential energy corresponding to the position variables.
 
 		Negative log of the momentum distribution pi(p|q).
 		"""
-		return 0
+		# Compute h matrix
+		h_xy = self.h_xy(f)
+		h_f = self.h_f(f)		
+
+		# Compute the term corresponding to the argument of the exponential
+		term1 = np.sum(pf**2 / h_f) + np.sum(px**2 / h_xy) + np.sum(py**2 / h_xy)
+
+		# Comput the term corresponding to the log determinant
+		term2 = np.sum(2 * np.log(h_xy) + np.log(h_f))
+
+		return (term1 + term2)/2. # No need to negate
 
 	def RHMC_single_step(self, f, x, y, pf, px, py, delta=1e-6, counter_max=1000):
 		"""
@@ -352,7 +362,7 @@ class sampler(object):
 
 			# ---- Compute the initial energies and record
 			self.V[i, 0] = self.Vq(f_tmp, x_tmp, y_tmp)
-			self.T[i, 0] = self.Tqp(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp)
+			self.T[i, 0] = self.Tqp(f_tmp, pf_tmp, px_tmp, py_tmp)
 			self.E[i, 0] = self.V[i, 0] + self.T[i, 0]
 
 			# ---- Roll dice and choose which proposal to make.
@@ -376,7 +386,7 @@ class sampler(object):
 
 			# ---- Compute the final energies and record
 			self.V[i, 1] = self.Vq(f_tmp, x_tmp, y_tmp)
-			self.T[i, 1] = self.Tqp(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp)
+			self.T[i, 1] = self.Tqp(f_tmp, pf_tmp, px_tmp, py_tmp)
 			self.E[i, 1] = self.V[i, 1] + self.T[i, 1]
 
 			# ---- Accept or reject the proposal and record
