@@ -35,9 +35,6 @@ class sampler(object):
 		self.D = None
 		self.q0 = None
 
-		# Placeholder for model
-		self.M = None
-
 		# Default "experimental" set-up
 		self.N_rows, self.N_cols, self.flux_to_count, self.PSF_FWHM_pix, \
 			self.B_count, self.mB, self.f_min, self.f_max, self.arcsec_to_pix = self.default_exp_setup()
@@ -54,12 +51,12 @@ class sampler(object):
 		# Variables are saved in high performance friendly format. 
 		# For q and p, only save the initial points, which are samples from the previous.
 		self.q = np.zeros((Niter+1, 3, Nobjs_max)) # Channels: 0 - f, 1 - x, 2 - y.
-		self.p = np.zeros((Niter+1, 3, Nobjs_max))
+		self.p = np.zeros((Niter, 3, Nobjs_max))
 		# For energies, save both initial and final: total Ec, V, and T.
-		self.E = np.zeros((Niter+1, 2))
-		self.V = np.zeros((Niter+1, 2)) # Potential
-		self.T = np.zeros((Niter+1, 2))	# Kinetic
-		self.N = np.zeros(Niter+1, dtype=int) # The total number of **objects** at the initial point.
+		self.E = np.zeros((Niter, 2))
+		self.V = np.zeros((Niter, 2)) # Potential
+		self.T = np.zeros((Niter, 2))	# Kinetic
+		self.N = np.zeros(Niter, dtype=int) # The total number of **objects** at the initial point.
 		self.A = np.zeros(Niter, dtype=bool) # Was the proposal accepted?
 		self.moves = np.zeros(Niter+1, dtype=int) # Record what sort of proposals were made.
 
@@ -80,6 +77,9 @@ class sampler(object):
 		# Flux prior f**-alpha (alpha must be greater 1)
 		self.alpha = alpha
 		assert self.alpha >= 1
+		# Prior factor (per object) often used. Combines the constant log factors from both position and flux priors.
+		C_f = (1-alpha) / (self.f_max**(1-alpha) - self.f_min**(1-alpha)) 
+		self.ln_C_prior = np.log(C_f) - np.log(self.N_rows * self.N_cols) 
 
 		# Split merge parameters
 		self.K = K # The gaussian width for dr
@@ -273,13 +273,42 @@ class sampler(object):
 		return pf, px, py
 
 
+	def gen_model_image(self, f, x, y):
+		"""
+		Given the model sample parameters, generate the model image.
+		"""
+		# Generate an image with background.
+		model= np.ones((self.N_rows, self.N_cols), dtype=float) * self.B_count
+
+		# Add one star at a time.
+		for s in xrange(f.size):
+			model +=  f[s] * gauss_PSF(self.N_rows, self.N_cols, x[s], y[s], FWHM = self.PSF_FWHM_pix)
+
+		return model
+
 	def Vq(self, f, x, y):
 		"""
 		The potential energy corresponding to the position variables.
 
-		Negative log of the posterior pi(q).
+		Negative log of the posterior pi(q):
+		-ln pi(q) = -(poisson log likelihood) - (log priors)
+		log priors = -alpha * sum_s(ln_f_s) + Ns * [ln(C_f) - ln(N_rows * N_cols)]
+		where Ns is the number of stars
 		"""
-		return 0
+		# Number of stars
+		Ns = f.size
+
+		# Generate model image
+		model = self.gen_model_image(f, x, y)
+
+		# Compute the poisson log likelihood
+		ln_poisson = np.sum(self.D * np.log(model) - model)
+
+		# Compute the log of prior. Note that it is important to keep track of the right 
+		# number of constants to be used.
+		ln_prior = -self.alpha * np.sum(np.log(f)) + Ns * self.ln_C_prior
+
+		return -ln_poisson - ln_prior
 
 	def Tqp(self, f, x, y, pf, px, py):
 		"""
