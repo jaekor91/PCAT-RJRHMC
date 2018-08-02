@@ -131,17 +131,29 @@ class sampler(object):
 		"""
 		Given the sample Nsample, draw samples from the xyf-prior.
 		"""
-		f = gen_pow_law_sample(2, self.f_min, self.f_max, Nsample=Nsample)
+		f = gen_pow_law_sample(self.alpha, self.f_min, self.f_max, Nsample=Nsample)
 		x = np.random.random(size=Nsample) * self.N_rows
 		y = np.random.random(size=Nsample) * self.N_cols
 
 		self.q0 = np.array([f, x, y])
 		return 
 
-	def gen_mock_image(self):
+	def gen_mock_data(self):
 		"""
-
+		Given the truth samples q0, generate the mock image.
 		"""
 		assert self.q0 is not None
 
-		return 
+		# Generate an image with background.
+		data = np.ones((self.N_rows, self.N_cols), dtype=float) * self.B_count
+
+		# Add one star at a time.
+		for i in xrange(self.q0.shape[1]):
+			fs, xs, ys = self.q0[:, i]
+			data +=  fs * gauss_PSF(self.N_rows, self.N_cols, xs, ys, FWHM = self.PSF_FWHM_pix)
+
+		# Poission realization D of the underlying truth D0
+		self.D = poisson_realization(data)		
+
+		return
+
