@@ -3,8 +3,7 @@ RHMC sampler
 Version: Final thesis
 Features: Transdimensional and fully implements RHMC
 Conventions:
-- All flux are in units of counts. The user only deals with magnitudes and the magitude to
-flux (in counts) conversion is done internally.
+- All flux are in units of counts. 
 - All object inputs are in the form (Nobjs, 3) with each row corresponding to an object 
 and its mag, x, y information. This is converted to three Nobjs-dimensional vectors internally.
 - The initial point is saved in 0-index position. If the user asks for N samples, then 
@@ -32,8 +31,9 @@ class sampler(object):
 			- 1: BD
 			- 2: MS
 		"""
-		# Placeholder for data
+		# Placeholder for mock data and the underlying truth q0
 		self.D = None
+		self.q0 = None
 
 		# Placeholder for model
 		self.M = None
@@ -113,7 +113,7 @@ class sampler(object):
 		mB = 23 # Backgroud magnitude per pixel.
 		B_count = mag2flux(mB) * flux_to_count 
 		f_min = mag2flux(mB) * flux_to_count # Limiting magnitude
-		f_max = mag2flux(15)
+		f_max = mag2flux(15) * flux_to_count 
 
 		# Size of the image
 		num_rows = num_cols = 32 # Pixel index goes from 0 to num_rows-1
@@ -126,3 +126,22 @@ class sampler(object):
 		"""
 		self.g0, self.g1, self.g2 = factors(self.N_rows, self.N_cols, self.N_rows/2., self.N_cols/2., self.PSF_FWHM_pix)
 		return
+
+	def gen_sample_true(self, Nsample):
+		"""
+		Given the sample Nsample, draw samples from the xyf-prior.
+		"""
+		f = gen_pow_law_sample(2, self.f_min, self.f_max, Nsample=Nsample)
+		x = np.random.random(size=Nsample) * self.N_rows
+		y = np.random.random(size=Nsample) * self.N_cols
+
+		self.q0 = np.array([f, x, y])
+		return 
+
+	def gen_mock_image(self):
+		"""
+
+		"""
+		assert self.q0 is not None
+
+		return 
