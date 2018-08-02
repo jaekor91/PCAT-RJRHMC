@@ -574,7 +574,7 @@ class sampler(object):
 				# After 1st RHMC: qL, -pL (Dim = N)
 
 				#---- Birth or death move
-				f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp = \
+				f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, factor = \
 					self.birth_death_move(f_tmp, x_tmp, y_tmp, pf_tmp, \
 						px_tmp, py_tmp, birth_death = birth_death)
 				# RJ move: q*L, -p*L (Dim = N +- 1)
@@ -732,7 +732,7 @@ class sampler(object):
 				# Factor to be added to ln_alpha0
 				factor = -self.alpha * np.log(fs) + 3/2. - self.Tqp(fs, pfs, pxs, pys) + self.ln_C_prior
 
-		return f_new, x_new, y_new, pf_new, px_new, py_new
+		return f_new, x_new, y_new, pf_new, px_new, py_new, factor
 
 
 	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
