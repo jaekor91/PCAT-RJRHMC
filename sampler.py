@@ -372,11 +372,11 @@ class sampler(object):
 		dVdx = np.zeros(f.size)
 		dVdy = np.zeros(f.size)		
 		for s in range(f.size):
-			fs, xs, ys = fs[s], x[s], y[s]
-			PSF = gauss_PSF(self.N_rows, self.N_cols, x[s], y[s], FWHM=self.PSF_FWHM_pix)
-			dVdf[s] = -np.sum(rho * PSF) + self.alpha / f # Note that there is always the prior.
-			dVdx[s] = -np.sum(rho * (lv - x + 0.5) * PSF) * fs / var
-			dVdy[s] = -np.sum(rho * (mv - y + 0.5) * PSF) * fs / var
+			fs, xs, ys = f[s], x[s], y[s]
+			PSF = gauss_PSF(self.N_rows, self.N_cols, xs, ys, FWHM=self.PSF_FWHM_pix)
+			dVdf[s] = -np.sum(rho * PSF) + self.alpha / fs # Note that there is always the prior.
+			dVdx[s] = -np.sum(rho * (lv - xs + 0.5) * PSF) * fs / var
+			dVdy[s] = -np.sum(rho * (mv - ys + 0.5) * PSF) * fs / var
 
 		return dVdf, dVdx, dVdy
 
@@ -444,8 +444,10 @@ class sampler(object):
 		dp = max(dpf, dpx, dpy)
 		counter = 0
 		while (dp > delta) and (counter < counter_max):
-			dtaudf = self.dtaudq(f, pf, px, py) 
+			dtaudf = self.dtaudf(f, pf, px, py) 
 			pf_prime = rho_f - (self.dt/2.) * dtaudf
+			px_prime = rho_x
+			py_prime = rho_y
 			# Determine dp max 			
 			dpf = np.max(np.abs(pf - pf_prime))
 			dpx = np.max(np.abs(px - px_prime))
@@ -464,6 +466,7 @@ class sampler(object):
 		df = np.infty
 		dx = np.infty
 		dy = np.infty
+		dq = max(df, dx, dy)
 		counter = 0				
 		while (dq > delta) and (counter < counter_max):
 			dtaudpf1, dtaudpx1, dtaudpy1 = self.dtaudp(sig_f, pf, px, py)
@@ -483,7 +486,7 @@ class sampler(object):
 			counter +=1					
 
 		# p-tau update
-		dtaudf = self.dtaudq(f, pf, px, py) 		
+		dtaudf = self.dtaudf(f, pf, px, py) 
 		pf = pf - (self.dt/2.) * dtaudf
 
 		# Last update phi-hat
