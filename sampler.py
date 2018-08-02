@@ -136,7 +136,22 @@ class sampler(object):
 		y = np.random.random(size=Nsample) * self.N_cols
 
 		self.q0 = np.array([f, x, y])
-		return 
+		return
+
+	def gen_sample_model(self, Nsample):
+		"""
+		Given the sample number Nsample, draw first model samples from the xyf-prior.
+		"""
+		f = gen_pow_law_sample(self.alpha, self.f_min, self.f_max, Nsample=Nsample)
+		x = np.random.random(size=Nsample) * self.N_rows
+		y = np.random.random(size=Nsample) * self.N_cols
+
+		self.q[0, 0, :Nsample] = f
+		self.q[0, 1, :Nsample] = x
+		self.q[0, 2, :Nsample] = y
+		self.N[0] = Nsample
+
+		return		
 
 	def gen_mock_data(self):
 		"""
@@ -157,3 +172,31 @@ class sampler(object):
 
 		return
 
+
+	def display_data(self, show=True, save=None, figsize=(5, 5), num_ticks = 6, \
+			vmin=None, vmax=None):
+		"""
+		Display the data image
+		"""
+		#---- Contrast
+		# If the user does not provide the contrast
+		if vmin is None:
+			# then check whether there is contrast stored up. If not.
+			if self.vmin is None:
+				D_raveled = self.D.ravel()
+				self.vmin = np.percentile(D_raveled, 0.)
+				self.vmax = np.percentile(D_raveled, 90.)
+			vmin = self.vmin
+			vmax = self.vmax
+
+		fig, ax = plt.subplots(1, figsize = figsize)
+		ax.imshow(self.D,  interpolation="none", cmap="gray", vmin=vmin, vmax = vmax)
+		yticks = ticker.MaxNLocator(num_ticks)
+		xticks = ticker.MaxNLocator(num_ticks)		
+		ax.yaxis.set_major_locator(yticks)
+		ax.xaxis.set_major_locator(xticks)		
+		if show:
+			plt.show()
+		if save is not None:
+			plt.savefig(save, dpi=200, bbox_inches = "tight")
+		plt.close()
