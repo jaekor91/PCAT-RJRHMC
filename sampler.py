@@ -350,7 +350,7 @@ class sampler(object):
 		"""
 		return -self.rho_f / (f + self.g0**-1 * self.B_count)**2
 
-	def dVdq(f, x, y):
+	def dVdq(self, f, x, y):
 		"""
 		Gradient of the negative log posterior.
 		"""
