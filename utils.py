@@ -84,3 +84,9 @@ def poisson_realization(D0):
         for j in xrange(D0.shape[1]):
             D[i, j] = np.random.poisson(lam=D0[i, j], size=1)
     return D
+
+def linear_func(s, m=-30, b = 20, s0=21, y_min = 5):
+    if type(s) == np.ndarray:
+        return np.maximum(m*(s-s0) + b, y_min)
+    else:
+        return max(m*(s-s0) + b, y_min)
