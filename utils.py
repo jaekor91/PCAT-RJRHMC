@@ -1,6 +1,5 @@
-import time
-
 # Matplot ticks
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['xtick.major.size'] = 15
 mpl.rcParams['xtick.major.width'] = 1.
@@ -10,10 +9,10 @@ mpl.rcParams['xtick.labelsize'] = 15
 mpl.rcParams['ytick.labelsize'] = 15
 from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import AxesGrid
-import matplotlib.pyplot as plt
 
 # Numpy and SciPy
 import numpy as np
+import time
 from scipy.stats import multivariate_normal
 from scipy.stats import norm
 from scipy.stats import beta as BETA
@@ -62,3 +61,16 @@ def gauss_PSF(num_rows, num_cols, x, y, FWHM):
     PSF = np.exp(-(np.square(xv-x) + np.square(yv-y))/(2*sigma**2))/(np.pi * 2 * sigma**2)
 
     return PSF
+
+def gen_pow_law_sample(alpha, fmin, fmax, Nsample=1):
+    """
+    Draw samples from power law distribution f**-alpha 
+    and fmin and fmax provided.
+    
+    Alphat must be greater than 1, otherwise the magnitude histogram will look funky!
+    """
+    assert (alpha > 1)
+    alpha = float(alpha)
+    u = np.random.random(size=Nsample)
+    lmbda = fmin**(1-alpha) + u * (fmax**(1-alpha) - fmin**(1-alpha))
+    return np.exp(np.log(lmbda) / (1-alpha))
