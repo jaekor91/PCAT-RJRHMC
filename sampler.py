@@ -78,7 +78,7 @@ class sampler(object):
 		self.alpha = alpha
 		assert self.alpha >= 1
 		# Prior factor (per object) often used. Combines the constant log factors from both position and flux priors.
-		C_f = (1-alpha) / (self.f_max**(1-alpha) - self.f_min**(1-alpha)) 
+		C_f = (1-alpha) / ((self.f_max/self.flux_to_count)**(1-alpha) - (self.f_min/self.flux_to_count)**(1-alpha)) 
 		self.ln_C_prior = np.log(C_f) - np.log(self.N_rows * self.N_cols) 
 
 		# Split merge parameters
