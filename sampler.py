@@ -52,14 +52,16 @@ class sampler(object):
 		# ----- Allocate space for the entire trajectories.
 		# No need to save momenta
 		# Variables are saved in high performance friendly format. 
+		# For q and p, only save the initial points, which are samples from the previous.
 		self.q = np.zeros((Niter+1, 3, Nobjs_max)) # Channels: 0 - f, 1 - x, 2 - y.
 		self.p = np.zeros((Niter+1, 3, Nobjs_max))
+		# For energies, save both initial and final: total Ec, V, and T.
 		self.E = np.zeros((Niter+1, 2))
 		self.V = np.zeros((Niter+1, 2)) # Potential
 		self.T = np.zeros((Niter+1, 2))	# Kinetic
-		self.N = np.zeros(Niter+1, dtype=int) # The total number of **objects** at a particular point in the inference.
-		self.A = np.zeros(self.Niter, dtype=bool) # Was the proposal accepted?
-		self.moves = np.zeros(self.Niter, dtype=int) # Record what sort of proposals were made.
+		self.N = np.zeros(Niter+1, dtype=int) # The total number of **objects** at the initial point.
+		self.A = np.zeros(Niter+1, dtype=bool) # Was the proposal accepted?
+		self.moves = np.zeros(Niter+1, dtype=int) # Record what sort of proposals were made.
 
 		# Global time step
 		self.dt = dt
