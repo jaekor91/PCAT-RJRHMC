@@ -448,8 +448,8 @@ class sampler(object):
 		while (dp > delta) and (counter < counter_max):
 			dtaudf = self.dtaudf(f, pf, px, py) 
 			pf_prime = rho_f - (self.dt/2.) * dtaudf
-			px_prime = rho_x
-			py_prime = rho_y
+			px_prime = np.copy(rho_x)
+			py_prime = np.copy(rho_y)
 			# Determine dp max 			
 			dpf = np.max(np.abs(pf - pf_prime))
 			dpx = np.max(np.abs(px - px_prime))
@@ -499,7 +499,7 @@ class sampler(object):
 
 		# Boundary condition checks
 		pf[(f < self.f_min)] *= -1
-		pf[(f > self.f_min)] *= -1
+		pf[(f > self.f_max)] *= -1
 		px[x < 0] *= -1
 		px[x > (self.N_rows-1)] *= -1
 		py[y < 0] *= -1
@@ -547,13 +547,12 @@ class sampler(object):
 				#---- Looping over steps
 				for l in xrange(self.Nsteps):
 					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
-						self.RHMC_single_step(\
-						f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
-						delta = delta, counter_max = counter_max)
+						self.RHMC_single_step(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
+											delta = delta, counter_max = counter_max)
 				factor = 0
 			elif move_type == 1: # BD
 				pass
-			elif move_type == 2: # <S
+			elif move_type == 2: # MS
 				pass 
 
 			# ---- Compute the final energies and record
