@@ -240,12 +240,37 @@ class sampler(object):
 
 		return
 
+	def h_xy(self, f):
+		"""
+		Given flux of objects, return the covariance matrix elements 
+		corresponding to the position variables.
+		"""
+
+		return self.rho_xy / ((f*self.g1)**-1 + self.B_count * (self.g2**(-1)) * (f**-2))
+
+	def h_f(self, f):
+		"""
+		Given flux of objects, return the covariance matrix elements 
+		corresponding to the position variables.
+		"""
+		return self.rho_f / (f + self.g0**-1 * self.B_count)		
+
 	def sample_momentum(self, f):
 		"""
 		Given the flux of objects, generate the corresponding momentum.
 		"""
+		d = f.size # Dimension of the vector
 
-		return np.zeros(f.size), np.zeros(f.size), np.zeros(f.size)
+		# Diagonal covariance matrix components for positions 
+		h_xy = self.h_xy(f)
+		px = np.sqrt(h_xy) * np.random.randn(d)
+		py = np.sqrt(h_xy) * np.random.randn(d)
+
+		# Diagonal covariance matrix components for flux
+		h_f = self.h_f(f)
+		pf = np.sqrt(h_f) * np.random.randn(d)
+
+		return pf, px, py
 
 
 	def Vq(self, f, x, y):
@@ -328,9 +353,8 @@ class sampler(object):
 			# ---- Accept or reject the proposal and record
 			dE = self.E[i, 1] - self.E[i, 0]
 			ln_alpha0 = -dE + factor # factor are other factors in ln_alpha0 other than -dE.
-
 			lnu = np.log(np.random.random(1))
-			if (ln_alpha0 > 0) or (lnu < ln_alpha0): # Accepted
+			if (ln_alpha0 >= 0) or (lnu < ln_alpha0): # Accepted
 				# Record acceptance
 				self.A[i] = True
 
