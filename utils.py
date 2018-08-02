@@ -74,3 +74,13 @@ def gen_pow_law_sample(alpha, fmin, fmax, Nsample=1):
     u = np.random.random(size=Nsample)
     lmbda = fmin**(1-alpha) + u * (fmax**(1-alpha) - fmin**(1-alpha))
     return np.exp(np.log(lmbda) / (1-alpha))
+
+def poisson_realization(D0):
+    """
+    Given a truth image D0, make a Poisson realization of it.
+    """
+    D = np.zeros_like(D0)
+    for i in xrange(D0.shape[0]):
+        for j in xrange(D0.shape[1]):
+            D[i, j] = np.random.poisson(lam=D0[i, j], size=1)
+    return D
