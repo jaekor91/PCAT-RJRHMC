@@ -539,11 +539,12 @@ class sampler(object):
 
 			# ---- Roll dice and choose which proposal to make.
 			move_type = np.random.choice([0, 1, 2], p=self.P_move, size=1)[0]
-			# Save the move type
-			self.moves[i] = move_type
 
 			# ---- Make the transition
 			if move_type == 0: # Intra-model move
+				# Save the move type
+				self.moves[i] = 0
+
 				#---- Looping over steps
 				for l in xrange(self.Nsteps):
 					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
@@ -551,9 +552,47 @@ class sampler(object):
 											delta = delta, counter_max = counter_max)
 				factor = 0
 			elif move_type == 1: # BD
-				pass
+				# Roll the dice to determine whether it's birth or death
+				# True - Birth and False - Death.
+				birth_death = np.random.choice([True, False], p=[0.5, 0.5])
+				
+				# Save which type of move was proposed.
+				if birth_death: # True - Birth
+					self.moves[i] = 1 
+				else:
+					self.moves[i] = 2
+
+				# Initial: q0, p0 (Dim = N)
+				#---- RHMC steps
+				for l in xrange(self.Nsteps):
+					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
+						self.RHMC_single_step(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
+											delta = delta, counter_max = counter_max)
+				pf_tmp *= -1
+				px_tmp *= -1
+				py_tmp *= -1				
+				# After 1st RHMC: qL, -pL (Dim = N)
+
+				#---- Birth or death move
+				f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp = \
+					self.birth_death_move(f_tmp, x_tmp, y_tmp, pf_tmp, \
+						px_tmp, py_tmp, birth_death = birth_death)
+				# RJ move: q*L, -p*L (Dim = N +- 1)
+
+				#---- RHMC steps
+				# Perform RHMC integration.
+				for l in xrange(self.Nsteps):
+					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
+						self.RHMC_single_step(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
+											delta = delta, counter_max = counter_max)
+				# pf_tmp *= -1
+				# px_tmp *= -1
+				# py_tmp *= -1
+				# After second RHMC: q*0, p*0 (Dim = N +- 1)
 			elif move_type == 2: # MS
 				pass 
+
+
 
 			# ---- Compute the final energies and record
 			self.V[i, 1] = self.Vq(f_tmp, x_tmp, y_tmp)
@@ -580,35 +619,6 @@ class sampler(object):
 				self.q[i+1, 1, :self.N[i+1]] = self.q[i, 1, :self.N[i]]
 				self.q[i+1, 2, :self.N[i+1]] = self.q[i, 2, :self.N[i]]
 
-		# 	elif move_type == 1: # If birth or death
-		# 		# Roll the dice to determine whether it's birth or death
-		# 		# True - Birth and False - Death.
-		# 		birth_death = np.random.choice([True, False], p=[0.5, 0.5])
-				
-		# 		# Save which type of move was proposed.
-		# 		if birth_death: # True - Birth
-		# 			self.move[l] = 1 
-		# 		else:
-		# 			self.move[l] = 2
-
-		# 		# Initial: q0, p0 (Dim = N)
-		# 		#---- RHMC steps
-		# 		for i in xrange(1, self.Nsteps+1, 1):
-		# 			q_tmp, p_tmp = self.RHMC_single_step(q_tmp, p_tmp, delta = delta, counter_max = counter_max)
-		# 		p_tmp *= -1 
-		# 		# After 1st RHMC: qL, -pL (Dim = N)
-
-		# 		#---- Birth or death move
-		# 		q_tmp, p_tmp, factor = self.birth_death_move(q_tmp, p_tmp, birth_death = birth_death)
-		# 		# RJ move: q*L, -p*L (Dim = N +- 1)
-
-		# 		#---- RHMC steps
-		# 		# Perform RHMC integration.
-		# 		for i in xrange(1, self.Nsteps+1, 1):
-		# 			q_tmp, p_tmp = self.RHMC_single_step(q_tmp, p_tmp, delta = delta, counter_max = counter_max)
-		# 		p_tmp *= -1 					
-		# 		# After second RHMC: q*0, p*0 (Dim = N +- 1)
-		
 		# 	elif move_type == 2: # If it merge or split
 		# 		# Roll the dice to determine whether it's merge or split
 		# 		# True - Split and False - Merge
@@ -639,7 +649,80 @@ class sampler(object):
 		# 		# After second RHMC: q*0, p*0 (Dim = N +- 1)
 
 
-		return		
+		return
+
+
+	def birth_death_move(self, f, x, y, pf, px, py, birth_death = None):
+		"""
+		Implement birth/death move.
+		Birth if birth_death = True, death if birth_death = False.
+		"""
+		# if (birth_death is None) or (self.alpha is None) or (self.f_min is None)\
+		# 	or (self.f_max is None): # Prior must be provided.
+		# 	assert False		
+
+		if birth_death: # If birth
+			# Create the output array and paste in the old
+			f_new = np.zeros(f.size+1)
+			x_new = np.zeros(f.size+1)
+			y_new = np.zeros(f.size+1)			
+			f_new[:-1] = f
+			x_new[:-1] = x
+			y_new[:-1] = y
+			pf_new = np.zeros(f.size+1)
+			px_new = np.zeros(f.size+1)
+			py_new = np.zeros(f.size+1)			
+			pf_new[:-1] = pf
+			px_new[:-1] = px
+			py_new[:-1] = py
+
+			# Draw new source parameters.
+			xs = np.random.random() * (self.N_rows - 1.)
+			ys = np.random.random() * (self.N_cols - 1.)
+			fs = gen_pow_law_sample(self.alpha, self.f_min/flux_to_count, self.f_max/flux_to_count, 1)[0] * flux_to_count
+			f_new[-1] = fs
+			x_new[-1] = xs
+			y_new[-1] = ys
+
+			# Sample momentum based on the new source value.
+			pfs, pxs, pys = self.sample_momentum(fs)
+			pf_new[-1], px_new[-1], py_new[-1] = pfs, pxs, pys
+
+			# Factor to be added to ln_alpha0
+			factor = self.alpha * np.log(fs) - 3/2. + self.Tqp(fs, pfs, pxs, pys) - self.ln_C_prior
+		else: # If death
+			# Create the output array and paste in the old
+			f_new = np.zeros(f.size-1)
+			x_new = np.zeros(f.size-1)
+			y_new = np.zeros(f.size-1)			
+			pf_new = np.zeros(f.size-1)
+			px_new = np.zeros(f.size-1)
+			py_new = np.zeros(f.size-1)			
+			
+			# Randomly select an object to kill.
+			i_kill = np.random.randint(0, f.size, size=1)[0]
+			fs = f[i_kill]
+			xs = x[i_kill]
+			ys = y[i_kill]
+
+			# Appropriately trim
+			f_new[:i_kill] =  f[:i_kill]
+			x_new[:i_kill] =  x[:i_kill]
+			y_new[:i_kill] =  y[:i_kill]
+			pf_new[:i_kill]  = pf[:i_kill]
+			px_new[:i_kill]  = px[:i_kill]
+			py_new[:i_kill]  = py[:i_kill]
+			f_new[i_kill:] =  f[i_kill+1]
+			x_new[i_kill:] =  x[i_kill+1]
+			y_new[i_kill:] =  y[i_kill+1]
+			pf_new[i_kill:]  = pf[i_kill+1]
+			px_new[i_kill:]  = px[i_kill+1]
+			py_new[i_kill:]  = py[i_kill+1]
+
+			# Factor to be added to ln_alpha0
+			factor = -self.alpha * np.log(fs) + 3/2. - self.Tqp(fs, pfs, pxs, pys) + self.ln_C_prior
+
+		return f_new, x_new, y_new, pf_new, px_new, py_new
 
 
 	def diagnostics_all(self, idx_iter = -1, figsize = (16, 11), \
