@@ -590,7 +590,43 @@ class sampler(object):
 				# py_tmp *= -1
 				# After second RHMC: q*0, p*0 (Dim = N +- 1)
 			elif move_type == 2: # MS
-				pass 
+				# Roll the dice to determine whether it's merge or split
+				# True - Merge and False - Split
+				merge_split = np.random.choice([True, False], p=[0.5, 0.5])
+				
+				# Save which type of move was proposed.
+				if merge_split: # True - merge
+					self.moves[i] = 3
+				else:
+					self.moves[i] = 4
+
+				# Initial: q0, p0 (Dim = N)
+				#---- RHMC steps
+				for l in xrange(self.Nsteps):
+					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
+						self.RHMC_single_step(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
+											delta = delta, counter_max = counter_max)
+				pf_tmp *= -1
+				px_tmp *= -1
+				py_tmp *= -1				
+				# After 1st RHMC: qL, -pL (Dim = N)
+
+				#---- Birth or death move
+				f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, factor = \
+					self.merge_split_move(f_tmp, x_tmp, y_tmp, pf_tmp, \
+						px_tmp, py_tmp, merge_split = merge_split)
+				# RJ move: q*L, -p*L (Dim = N +- 1)
+
+				#---- RHMC steps
+				# Perform RHMC integration.
+				for l in xrange(self.Nsteps):
+					f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp =\
+						self.RHMC_single_step(f_tmp, x_tmp, y_tmp, pf_tmp, px_tmp, py_tmp, \
+											delta = delta, counter_max = counter_max)
+				# pf_tmp *= -1
+				# px_tmp *= -1
+				# py_tmp *= -1
+				# After second RHMC: q*0, p*0 (Dim = N +- 1)
 
 			# ---- Compute the final energies and record
 			self.V[i, 1] = self.Vq(f_tmp, x_tmp, y_tmp)
@@ -616,36 +652,6 @@ class sampler(object):
 				self.q[i+1, 0, :self.N[i+1]] = self.q[i, 0, :self.N[i]]
 				self.q[i+1, 1, :self.N[i+1]] = self.q[i, 1, :self.N[i]]
 				self.q[i+1, 2, :self.N[i+1]] = self.q[i, 2, :self.N[i]]
-
-		# 	elif move_type == 2: # If it merge or split
-		# 		# Roll the dice to determine whether it's merge or split
-		# 		# True - Split and False - Merge
-		# 		split_merge = np.random.choice([True, False], p=[0.5, 0.5])
-				
-		# 		# Save which type of move was proposed.
-		# 		if split_merge: # True - Split
-		# 			self.move[l] = 3
-		# 		else:
-		# 			self.move[l] = 4
-
-		# 		# Initial: q0, p0 (Dim = N)
-		# 		#---- RHMC steps
-		# 		for i in xrange(1, self.Nsteps+1, 1):
-		# 			q_tmp, p_tmp = self.RHMC_single_step(q_tmp, p_tmp, delta = delta, counter_max = counter_max)
-		# 		p_tmp *= -1 
-		# 		# After 1st RHMC: qL, -pL (Dim = N)
-
-		# 		#---- Split or merge move
-		# 		q_tmp, p_tmp, factor = self.split_merge_move(q_tmp, p_tmp, split_merge = split_merge)
-		# 		# RJ move: q*L, -p*L (Dim = N +- 1)
-
-		# 		#---- RHMC steps
-		# 		# Perform RHMC integration.
-		# 		for i in xrange(1, self.Nsteps+1, 1):
-		# 			q_tmp, p_tmp = self.RHMC_single_step(q_tmp, p_tmp, delta = delta, counter_max = counter_max)
-		# 		p_tmp *= -1 					
-		# 		# After second RHMC: q*0, p*0 (Dim = N +- 1)
-
 
 		return
 
