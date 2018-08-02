@@ -140,8 +140,8 @@ class sampler(object):
 		"""
 		f = gen_pow_law_sample(self.alpha, self.f_min/self.flux_to_count, \
 			self.f_max/self.flux_to_count, Nsample=Nsample) * self.flux_to_count
-		x = np.random.random(size=Nsample) * self.N_rows
-		y = np.random.random(size=Nsample) * self.N_cols
+		x = np.random.random(size=Nsample) * (self.N_rows-1)
+		y = np.random.random(size=Nsample) * (self.N_cols-1)
 
 		self.q0 = np.array([f, x, y])
 		return
@@ -152,8 +152,8 @@ class sampler(object):
 		"""
 		f = gen_pow_law_sample(self.alpha, self.f_min/self.flux_to_count, \
 			self.f_max/self.flux_to_count, Nsample=Nsample) * self.flux_to_count
-		x = np.random.random(size=Nsample) * self.N_rows
-		y = np.random.random(size=Nsample) * self.N_cols
+		x = np.random.random(size=Nsample) * (self.N_rows-1)
+		y = np.random.random(size=Nsample) * (self.N_cols-1)
 
 		self.q[0, 0, :Nsample] = f
 		self.q[0, 1, :Nsample] = x
@@ -189,7 +189,7 @@ class sampler(object):
 		"""
 		#---- Contrast
 		# If the user does not provide the contrast
-		if vmin is None:
+		if self.vmin is None:
 			# then check whether there is contrast stored up. If not.
 			if self.vmin is None:
 				D_raveled = self.D.ravel()
@@ -501,9 +501,9 @@ class sampler(object):
 		pf[(f < self.f_min)] *= -1
 		pf[(f > self.f_min)] *= -1
 		px[x < 0] *= -1
-		px[x > self.N_rows] *= -1
+		px[x > (self.N_rows-1)] *= -1
 		py[y < 0] *= -1
-		py[y > self.N_rows] *= -1
+		py[y > (self.N_rows-1)] *= -1
 
 		return f, x, y, pf, px, py
 
@@ -773,3 +773,6 @@ class sampler(object):
 
 	def flux2mag_converter(self, F):
 		return flux2mag(F / self.flux_to_count) # The division is necessary because flux is already in counts units.
+
+	def print_accept_rate(self):
+		print np.mean(self.A)
