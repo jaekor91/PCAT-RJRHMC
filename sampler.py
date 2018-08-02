@@ -200,3 +200,35 @@ class sampler(object):
 		if save is not None:
 			plt.savefig(save, dpi=200, bbox_inches = "tight")
 		plt.close()
+
+
+	def gen_noise_profile(self, N_trial = 1000, sig_fac=10):
+		"""
+		Given the truth q0, obtain error profile.
+		"""
+		assert self.q0 is not None
+
+		# Generate an image with background.
+		truth = np.ones((self.N_rows, self.N_cols), dtype=float) * self.B_count
+
+		# Add one star at a time.
+		for i in xrange(self.q0.shape[1]):
+			fs, xs, ys = self.q0[:, i]
+			truth +=  fs * gauss_PSF(self.N_rows, self.N_cols, xs, ys, FWHM = self.PSF_FWHM_pix)
+
+		res_list = []
+		for _ in xrange(N_trial):
+		    # Poission realization D of the underlying truth D0
+		    res_list.append(poisson_realization(truth) - truth)
+		res = np.vstack(res_list).ravel()
+
+		sig = np.sqrt(self.B_count)
+		bins = np.arange(-sig_fac * sig, sig_fac * sig, sig/5.)
+		hist, _ = np.histogram(res, bins = bins, normed=True)
+
+		bin_centers = (bins[1:] + bins[:-1])/2.
+
+		self.hist_noise = hist
+		self.centers_noise = bin_centers
+
+		return
