@@ -328,10 +328,177 @@ class sampler(object):
 
 		return (term1 + term2)/2. # No need to negate
 
+	def dh_xydf(self, f):
+		"""
+		Just the derivate of h_xy function.
+		"""
+		grad = self.rho_xy * \
+			(1./(self.g1 * f**2) + 2 * self.B_count/(self.g2 * f**3)) * \
+			((f*self.g1)**-1 + self.B_count * (self.g2**(-1)) * (f**-2))**-2
+		# Note that negative sign cancels.
+
+		# Thresholding if flux outside the proper bounds
+		# This derives from the fact that the potential is constant there.
+		grad[f < self.f_min] = 0
+		grad[f > self.f_max] = 0		
+
+		return grad
+
+	def dh_fdf(self, f):
+		"""
+		Simply the gradient of h_f
+		"""
+		return -self.rho_f / (f + self.g0**-1 * self.B_count)**2
+
+	def dVdq(f, x, y):
+		"""
+		Gradient of the negative log posterior.
+		"""
+
+		# Compute the current model.
+		Lambda = self.gen_model_image(f, x, y)
+
+		# Variable to be recycled
+		rho = (self.D/Lambda)-1.# (D_lm/Lambda_lm - 1)
+		# Compute f, x, y gradient for each object
+		lv = np.arange(0, self.num_rows)
+		mv = np.arange(0, self.num_cols)
+		mv, lv = np.meshgrid(lv, mv)
+		var = (self.PSF_FWHM_pix/2.354)**2 
+
+		# Place holder for gradient variables. Because the gradient has to be 
+		# computed individual over the entire data it would be hard to make this vectorized
+		dVdf = np.zeros(f.size)
+		dVdx = np.zeros(f.size)
+		dVdy = np.zeros(f.size)		
+		for s in range(f.size):
+			fs, xs, ys = fs[s], x[s], y[s]
+			PSF = gauss_PSF(self.num_rows, self.num_cols, x[s], y[s], FWHM=self.PSF_FWHM_pix)
+			dVdf[s] = -np.sum(rho * PSF) + self.alpha / f # Note that there is always the prior.
+			dVdx[s] = -np.sum(rho * (lv - x + 0.5) * PSF) * fs / var
+			dVdy[s] = -np.sum(rho * (mv - y + 0.5) * PSF) * fs / var
+
+		return dVdf, dVdx, dVdy
+
+	def dphidq(self, f, x, y):
+		"""
+		As in the general metric paper.
+		"""
+		# Gradient contribution
+		dVdf, dVdx, dVdy = self.dVdq(f, x, y)
+
+		# Compute h matrix
+		h_xy = self.h_xy(f)
+		h_f = self.h_f(f)
+
+		# Compute the gradient of h matrix
+		dh_xydf = self.dh_xydf(f)
+		dh_fdf = self.dh_fdf(f)
+
+		# For each object compute the gradient
+		grad_logdet_f = (2 * dh_xydf / h_xy) + (dh_fdf / h_f)		
+
+		return dVdf+grad_logdet_f, dVdx, dVdy
+
+	def dtaudf(self, f, pf, px, py):
+		"""
+		As in the general metric paper.
+		All the other ones evalute to zero.
+		"""
+		# Compute h matrix
+		h_xy = self.h_xy(f)
+		h_f = self.h_f(f)
+
+		# Compute the gradient of h matrix
+		dh_xydf = self.dh_xydf(f)
+		dh_fdf = self.dh_fdf(f)
+
+		dtaudf = -0.5 * ((px**2 + py**2) * dh_xydf / h_xy**2 + pf**2 * dh_fdf / h_f**2)
+
+		return dtaudf
+
+	def dtaudp(self, f, pf, px, py):
+		# Compute h matrix
+		h_xy = self.h_xy(f)
+		h_f = self.h_f(f)
+
+		return pf/h_f, px/h_xy, py/h_xy
+
 	def RHMC_single_step(self, f, x, y, pf, px, py, delta=1e-6, counter_max=1000):
 		"""
 		Perform single step RHMC.
 		"""
+		# First update phi-hat
+		dphidf, dphidx, dphidy = self.dphidq(f, x, y)
+		pf = pf - (self.dt/2.) * dphidf
+		px = px - (self.dt/2.) * dphidx
+		py = py - (self.dt/2.) * dphidy
+
+		# p-tau update
+		rho_f = np.copy(pf)
+		rho_x = np.copy(px)
+		rho_y = np.copy(py)		
+		dpf = np.infty
+		dpx = np.infty
+		dpy = np.infty
+		dp = max(dpf, dpx, dpy)
+		counter = 0
+		while (dp > delta) and (counter < counter_max):
+			dtaudf = self.dtaudq(f, pf, px, py) 
+			pf_prime = rho_f - (self.dt/2.) * dtaudf
+			# Determine dp max 			
+			dpf = np.max(np.abs(pf - pf_prime))
+			dpx = np.max(np.abs(px - px_prime))
+			dpy = np.max(np.abs(py - py_prime))
+			dp = max(dpf, dpx, dpy)
+			# Copy 
+			pf = np.copy(pf_prime)
+			px = np.copy(px_prime)
+			py = np.copy(py_prime)			
+			counter +=1
+
+		# q-tau update
+		sig_f = np.copy(f)
+		sig_x = np.copy(x)
+		sig_y = np.copy(y)
+		df = np.infty
+		dx = np.infty
+		dy = np.infty
+		counter = 0				
+		while (dq > delta) and (counter < counter_max):
+			dtaudpf1, dtaudpx1, dtaudpy1 = self.dtaudp(sig_f, pf, px, py)
+			dtaudpf2, dtaudpx2, dtaudpy2 = self.dtaudp(f, pf, px, py)
+			f_prime = sig_f + (self.dt/2.) * (dtaudpf1 + dtaudpf2)
+			x_prime = sig_x + (self.dt/2.) * (dtaudpx1 + dtaudpx2)
+			y_prime = sig_y + (self.dt/2.) * (dtaudpy1 + dtaudpy2)
+			# Compute the max difference
+			df = np.max(np.abs(f - f_prime))
+			dx = np.max(np.abs(x - x_prime))
+			dy = np.max(np.abs(y - y_prime))
+			dq = max(df, dx, dy)
+			# Copy
+			f = np.copy(f_prime)
+			x = np.copy(x_prime)
+			y = np.copy(y_prime)			
+			counter +=1					
+
+		# p-tau update
+		dtaudf = self.dtaudq(f, pf, px, py) 		
+		pf = pf - (self.dt/2.) * dtaudf
+
+		# Last update phi-hat
+		dphidf, dphidx, dphidy = self.dphidq(f, x, y)
+		pf = pf - (self.dt/2.) * dphidf
+		px = px - (self.dt/2.) * dphidx
+		py = py - (self.dt/2.) * dphidy
+
+		# Boundary condition checks
+		pf[(f < self.f_min)] *= -1
+		pf[(f > self.f_min)] *= -1
+		px[x < 0] *= -1
+		px[x > self.N_rows] *= -1
+		py[y < 0] *= -1
+		py[y > self.N_rows] *= -1
 
 		return f, x, y, pf, px, py
 
