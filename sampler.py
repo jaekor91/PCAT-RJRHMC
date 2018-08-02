@@ -592,8 +592,6 @@ class sampler(object):
 			elif move_type == 2: # MS
 				pass 
 
-
-
 			# ---- Compute the final energies and record
 			self.V[i, 1] = self.Vq(f_tmp, x_tmp, y_tmp)
 			self.T[i, 1] = self.Tqp(f_tmp, pf_tmp, px_tmp, py_tmp)
@@ -662,65 +660,77 @@ class sampler(object):
 		# 	assert False		
 
 		if birth_death: # If birth
-			# Create the output array and paste in the old
-			f_new = np.zeros(f.size+1)
-			x_new = np.zeros(f.size+1)
-			y_new = np.zeros(f.size+1)			
-			f_new[:-1] = f
-			x_new[:-1] = x
-			y_new[:-1] = y
-			pf_new = np.zeros(f.size+1)
-			px_new = np.zeros(f.size+1)
-			py_new = np.zeros(f.size+1)			
-			pf_new[:-1] = pf
-			px_new[:-1] = px
-			py_new[:-1] = py
+			if f.size == self.Nobjs_max-1:
+				factor = -np.infty
+				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
+			else:
+				# Create the output array and paste in the old
+				f_new = np.zeros(f.size+1)
+				x_new = np.zeros(f.size+1)
+				y_new = np.zeros(f.size+1)			
+				f_new[:-1] = f
+				x_new[:-1] = x
+				y_new[:-1] = y
+				pf_new = np.zeros(f.size+1)
+				px_new = np.zeros(f.size+1)
+				py_new = np.zeros(f.size+1)			
+				pf_new[:-1] = pf
+				px_new[:-1] = px
+				py_new[:-1] = py
 
-			# Draw new source parameters.
-			xs = np.random.random() * (self.N_rows - 1.)
-			ys = np.random.random() * (self.N_cols - 1.)
-			fs = gen_pow_law_sample(self.alpha, self.f_min/flux_to_count, self.f_max/flux_to_count, 1)[0] * flux_to_count
-			f_new[-1] = fs
-			x_new[-1] = xs
-			y_new[-1] = ys
+				# Draw new source parameters.
+				xs = np.random.random() * (self.N_rows - 1.)
+				ys = np.random.random() * (self.N_cols - 1.)
+				fs = gen_pow_law_sample(self.alpha, self.f_min/self.flux_to_count, \
+					self.f_max/self.flux_to_count, 1)[0] * self.flux_to_count
+				f_new[-1] = fs
+				x_new[-1] = xs
+				y_new[-1] = ys
 
-			# Sample momentum based on the new source value.
-			pfs, pxs, pys = self.sample_momentum(fs)
-			pf_new[-1], px_new[-1], py_new[-1] = pfs, pxs, pys
+				# Sample momentum based on the new source value.
+				pfs, pxs, pys = self.sample_momentum(fs)
+				pf_new[-1], px_new[-1], py_new[-1] = pfs, pxs, pys
 
-			# Factor to be added to ln_alpha0
-			factor = self.alpha * np.log(fs) - 3/2. + self.Tqp(fs, pfs, pxs, pys) - self.ln_C_prior
+				# Factor to be added to ln_alpha0
+				factor = self.alpha * np.log(fs) - 3/2. + self.Tqp(fs, pfs, pxs, pys) - self.ln_C_prior
 		else: # If death
-			# Create the output array and paste in the old
-			f_new = np.zeros(f.size-1)
-			x_new = np.zeros(f.size-1)
-			y_new = np.zeros(f.size-1)			
-			pf_new = np.zeros(f.size-1)
-			px_new = np.zeros(f.size-1)
-			py_new = np.zeros(f.size-1)			
-			
-			# Randomly select an object to kill.
-			i_kill = np.random.randint(0, f.size, size=1)[0]
-			fs = f[i_kill]
-			xs = x[i_kill]
-			ys = y[i_kill]
+			if f.size == 1: 
+				factor = -np.infty
+				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
+			else:
+				# Create the output array and paste in the old
+				f_new = np.zeros(f.size-1)
+				x_new = np.zeros(f.size-1)
+				y_new = np.zeros(f.size-1)			
+				pf_new = np.zeros(f.size-1)
+				px_new = np.zeros(f.size-1)
+				py_new = np.zeros(f.size-1)			
+				
+				# Randomly select an object to kill.
+				i_kill = np.random.randint(0, f.size, size=1)[0]
+				fs = f[i_kill]
+				xs = x[i_kill]
+				ys = y[i_kill]
+				pfs = pf[i_kill]
+				pxs = px[i_kill]
+				pys = py[i_kill]
 
-			# Appropriately trim
-			f_new[:i_kill] =  f[:i_kill]
-			x_new[:i_kill] =  x[:i_kill]
-			y_new[:i_kill] =  y[:i_kill]
-			pf_new[:i_kill]  = pf[:i_kill]
-			px_new[:i_kill]  = px[:i_kill]
-			py_new[:i_kill]  = py[:i_kill]
-			f_new[i_kill:] =  f[i_kill+1]
-			x_new[i_kill:] =  x[i_kill+1]
-			y_new[i_kill:] =  y[i_kill+1]
-			pf_new[i_kill:]  = pf[i_kill+1]
-			px_new[i_kill:]  = px[i_kill+1]
-			py_new[i_kill:]  = py[i_kill+1]
+				# Appropriately trim
+				f_new[:i_kill] =  f[:i_kill]
+				x_new[:i_kill] =  x[:i_kill]
+				y_new[:i_kill] =  y[:i_kill]
+				pf_new[:i_kill]  = pf[:i_kill]
+				px_new[:i_kill]  = px[:i_kill]
+				py_new[:i_kill]  = py[:i_kill]
+				f_new[i_kill:] =  f[i_kill+1:]
+				x_new[i_kill:] =  x[i_kill+1:]
+				y_new[i_kill:] =  y[i_kill+1:]
+				pf_new[i_kill:]  = pf[i_kill+1:]
+				px_new[i_kill:]  = px[i_kill+1:]
+				py_new[i_kill:]  = py[i_kill+1:]
 
-			# Factor to be added to ln_alpha0
-			factor = -self.alpha * np.log(fs) + 3/2. - self.Tqp(fs, pfs, pxs, pys) + self.ln_C_prior
+				# Factor to be added to ln_alpha0
+				factor = -self.alpha * np.log(fs) + 3/2. - self.Tqp(fs, pfs, pxs, pys) + self.ln_C_prior
 
 		return f_new, x_new, y_new, pf_new, px_new, py_new
 
