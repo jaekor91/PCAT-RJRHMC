@@ -634,6 +634,13 @@ class sampler(object):
 			self.E[i, 1] = self.V[i, 1] + self.T[i, 1]
 
 			# ---- Accept or reject the proposal and record
+			 # If anything is outside the prior boundary, then reject			
+			if (x_tmp < 0).any() or (x_tmp>self.N_rows-1).any() or\
+				(f_tmp < self.f_min).any() or (f_tmp> self.f_max).any() or\
+				(y_tmp < 0).any() or (y_tmp>self.N_cols-1).any():
+				factor = -np.infty
+
+
 			dE = self.E[i, 1] - self.E[i, 0]
 			ln_alpha0 = -dE + factor # factor are other factors in ln_alpha0 other than -dE.
 			lnu = np.log(np.random.random(1))
