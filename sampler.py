@@ -1009,4 +1009,39 @@ class sampler(object):
 		return flux2mag(F / self.flux_to_count) # The division is necessary because flux is already in counts units.
 
 	def print_accept_rate(self):
-		print np.mean(self.A)
+		intra = ((self.moves==0).sum(), (self.A & (self.moves == 0)).sum())
+		birth = ((self.moves==1).sum(), (self.A & (self.moves == 1)).sum())
+		death = ((self.moves==2).sum(), (self.A & (self.moves == 2)).sum())
+		split = ((self.moves==3).sum(), (self.A & (self.moves == 3)).sum())
+		merge = ((self.moves==4).sum(), (self.A & (self.moves == 4)).sum())
+		rate_list = [intra, birth, death, split, merge]
+
+		for i in range(5):
+			tally = rate_list
+			print "%s: %d/%d (%.2f)" % (self.move_types[i], tally[1], tally[0], tally[1]/float(tally[0]))
+		print "Total: %d/%d (%.2f)" % (self.A.sum(), self.Niter, self.A.sum()/float(self.Niter))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
