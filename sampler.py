@@ -111,7 +111,7 @@ class sampler(object):
 		PSF_FWHM_pix = PSF_FWHM_arcsec / arcsec_to_pix # The quantity used.
 		PSF_sigma = PSF_FWHM_arcsec
 		gain = 4.62 # photo-electron counts to ADU
-		ADU_to_flux = 0.00546689 # nanomaggies per ADU
+		ADU_to_flux = 0.00546689 # nanomaggies per ADU 
 		B_ADU = 179 # Background in ADU.
 		B_count = B_ADU/gain
 		flux_to_count = 1./(ADU_to_flux * gain) # Flux to count conversion
@@ -119,8 +119,8 @@ class sampler(object):
 		#---- Default mag set up
 		mB = 23 # Backgroud magnitude per pixel.
 		B_count = mag2flux(mB) * flux_to_count 
-		f_min = mag2flux(mB-2) * flux_to_count # Limiting magnitude
-		f_max = mag2flux(13) * flux_to_count 
+		f_min = mag2flux(mB-3) * flux_to_count # Limiting magnitude
+		f_max = mag2flux(15) * flux_to_count 
 
 		# Size of the image
 		N_rows = N_cols = 32 # Pixel index goes from 0 to N_rows-1
@@ -828,7 +828,7 @@ class sampler(object):
 			else:				
 				# Compute F-matrix and the associated probability
 				F_matrix = f / (f.reshape((f.size, 1)) + f)
-				ibool = np.abs(F_matrix-0.5) < 1e-10
+				ibool = np.abs(F_matrix-0.5) < 1e-6
 				BETA_F = BETA.pdf(F_matrix, self.B_alpha, self.B_beta)
 				BETA_F[ibool] = 0. # Eliminate self-merging possibility.
 
@@ -1016,15 +1016,15 @@ class sampler(object):
 		return flux2mag(F / self.flux_to_count) # The division is necessary because flux is already in counts units.
 
 	def print_accept_rate(self):
-		intra = ((self.moves==0).sum(), (self.A & (self.moves == 0)).sum())
-		birth = ((self.moves==1).sum(), (self.A & (self.moves == 1)).sum())
-		death = ((self.moves==2).sum(), (self.A & (self.moves == 2)).sum())
-		split = ((self.moves==3).sum(), (self.A & (self.moves == 3)).sum())
-		merge = ((self.moves==4).sum(), (self.A & (self.moves == 4)).sum())
+		intra = ((self.moves==0).sum(), (self.A & (self.moves[:-1] == 0)).sum())
+		birth = ((self.moves==1).sum(), (self.A & (self.moves[:-1] == 1)).sum())
+		death = ((self.moves==2).sum(), (self.A & (self.moves[:-1] == 2)).sum())
+		split = ((self.moves==3).sum(), (self.A & (self.moves[:-1] == 3)).sum())
+		merge = ((self.moves==4).sum(), (self.A & (self.moves[:-1] == 4)).sum())
 		rate_list = [intra, birth, death, split, merge]
 
 		for i in range(5):
-			tally = rate_list
+			tally = rate_list[i]
 			print "%s: %d/%d (%.2f)" % (self.move_types[i], tally[1], tally[0], tally[1]/float(tally[0]))
 		print "Total: %d/%d (%.2f)" % (self.A.sum(), self.Niter, self.A.sum()/float(self.Niter))
 
