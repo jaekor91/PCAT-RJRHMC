@@ -788,9 +788,9 @@ class sampler(object):
 
 				# -- Put them all together in the above arrays
 				# Add up to before split star
-				f_new[:i_star] = f[:istar]
-				x_new[:i_star] = x[:istar]
-				y_new[:i_star] = y[:istar]
+				f_new[:i_star] = f[:i_star]
+				x_new[:i_star] = x[:i_star]
+				y_new[:i_star] = y[:i_star]
 				pf_new[:i_star] = pf[:i_star]
 				px_new[:i_star] = px[:i_star]
 				py_new[:i_star] = py[:i_star]
@@ -805,14 +805,14 @@ class sampler(object):
 				f_new[-2:] =np.array([f_prime, f_dprime])
 				x_new[-2:] =np.array([x_prime, x_dprime])
 				y_new[-2:] =np.array([y_prime, y_dprime])
-				pf_new[-2:] = np.array([pf_prime, pf_dprime])
-				px_new[-2:] = np.array([px_prime, px_dprime])
-				py_new[-2:] = np.array([py_prime, py_dprime])
+				pf_new[-2:] = np.concatenate([pf_prime, pf_dprime])
+				px_new[-2:] = np.concatenate([px_prime, px_dprime])
+				py_new[-2:] = np.concatenate([py_prime, py_dprime])
 
 				# Factor to be added to ln_alpha0
 				factor = (-3/2.) + np.log(f_star) - BETA.logpdf(F, self.B_alpha, self.B_beta) \
 					+ np.log(2 * np.pi * self.K**2) + (dr_sq / (2 * self.K**2)) \
-					+ self.Tqp(f_star, pf_star, px_star, py_star) - self.Tqp(f_prime, pf_prime, px_prime, py_prime)
+					+ self.Tqp(f_star, pf_star, px_star, py_star) - self.Tqp(f_prime, pf_prime, px_prime, py_prime)\
 					- self.Tqp(f_dprime, pf_dprime, px_dprime, py_dprime)
 		else: # If merge
 			if f.size == 1: 
@@ -843,6 +843,8 @@ class sampler(object):
 				# Unpack
 				f_prime, x_prime, y_prime = f[idx_prime], x[idx_prime], y[idx_prime]
 				f_dprime, x_dprime, y_dprime = f[idx_dprime], x[idx_dprime], y[idx_dprime]
+				pf_prime, px_prime, py_prime = pf[idx_prime], px[idx_prime], py[idx_prime]
+				pf_dprime, px_dprime, py_dprime = pf[idx_dprime], px[idx_dprime], py[idx_dprime]				
 
 				# Comptue u varibles
 				F = f_prime / (f_prime + f_dprime)
@@ -859,17 +861,17 @@ class sampler(object):
 				pf_star, px_star, py_star = self.sample_momentum(f_star)
 
 				# --Put everything in the right order
-				f_new = np.concatenate([f[:idx_prime], f[idx_prime+1:idx_dprime], f[idx_dprime+1:], np.array(f_star)])
-				x_new = np.concatenate([x[:idx_prime], x[idx_prime+1:idx_dprime], x[idx_dprime+1:], np.array(x_star)])
-				y_new = np.concatenate([y[:idx_prime], y[idx_prime+1:idx_dprime], y[idx_dprime+1:], np.array(y_star)])
-				pf_new = np.concatenate([pf[:idx_prime], pf[idx_prime+1:idx_dprime], pf[idx_dprime+1:], np.array(pf_star)])
-				px_new = np.concatenate([px[:idx_prime], px[idx_prime+1:idx_dprime], px[idx_dprime+1:], np.array(px_star)])
-				py_new = np.concatenate([py[:idx_prime], py[idx_prime+1:idx_dprime], py[idx_dprime+1:], np.array(py_star)])
+				f_new = np.concatenate([f[:idx_prime], f[idx_prime+1:idx_dprime], f[idx_dprime+1:], np.array([f_star])])
+				x_new = np.concatenate([x[:idx_prime], x[idx_prime+1:idx_dprime], x[idx_dprime+1:], np.array([x_star])])
+				y_new = np.concatenate([y[:idx_prime], y[idx_prime+1:idx_dprime], y[idx_dprime+1:], np.array([y_star])])
+				pf_new = np.concatenate([pf[:idx_prime], pf[idx_prime+1:idx_dprime], pf[idx_dprime+1:], pf_star])
+				px_new = np.concatenate([px[:idx_prime], px[idx_prime+1:idx_dprime], px[idx_dprime+1:], px_star])
+				py_new = np.concatenate([py[:idx_prime], py[idx_prime+1:idx_dprime], py[idx_dprime+1:], py_star])
 
 				# Factor to be added to ln_alpha0
 				factor = (+3/2.) - np.log(f_star) + BETA.logpdf(F, self.B_alpha, self.B_beta) \
 					- np.log(2 * np.pi * self.K**2) - (dr_sq / (2 * self.K**2)) \
-					- self.Tqp(f_star, pf_star, px_star, py_star) + self.Tqp(f_prime, pf_prime, px_prime, py_prime)
+					- self.Tqp(f_star, pf_star, px_star, py_star) + self.Tqp(f_prime, pf_prime, px_prime, py_prime)\
 					+ self.Tqp(f_dprime, pf_dprime, px_dprime, py_dprime)
 
 		return f_new, x_new, y_new, pf_new, px_new, py_new, factor
