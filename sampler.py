@@ -707,7 +707,7 @@ class sampler(object):
 				# Factor to be added to ln_alpha0
 				factor = self.alpha * np.log(fs) - 3/2. + self.Tqp(fs, pfs, pxs, pys) - self.ln_C_prior
 		else: # If death
-			if f.size == 1: 
+			if f.size == 0: 
 				factor = -np.infty
 				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
 			else:
@@ -822,7 +822,7 @@ class sampler(object):
 					+ self.Tqp(f_star, pf_star, px_star, py_star) - self.Tqp(f_prime, pf_prime, px_prime, py_prime)\
 					- self.Tqp(f_dprime, pf_dprime, px_dprime, py_dprime)
 		else: # If merge
-			if f.size == 1: 
+			if f.size < 2: 
 				factor = -np.infty
 				f_new, x_new, y_new, pf_new, px_new, py_new = f, x, y, pf, px, py
 			else:				
